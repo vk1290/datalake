@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: local-datalake
+---
+# 1. MinIO Deployment (Local Cloud Storage Mimic)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: local-datalake
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:latest
+        args: ["server", "/data", "--console-address", ":9001"]
+        env:
+        - name: MINIO_ROOT_USER
+          value: "admin"
+        - name: MINIO_ROOT_PASSWORD
+          value: "password123"
+        ports:
+        - containerPort: 9000
+        - containerPort: 9001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: local-datalake
+spec:
+  ports:
+  - name: api
+    port: 9000
+    targetPort: 9000
+  - name: console
+    port: 9001
+    targetPort: 9001
+  selector:
+    app: minio
+  type: NodePort
+---
+# 2. Apache Polaris Deployment (The Catalog)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: polaris
+  namespace: local-datalake
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: polaris
+  template:
+    metadata:
+      labels:
+        app: polaris
+    spec:
+      containers:
+      - name: polaris
+        image: apache/polaris:latest
+        ports:
+        - containerPort: 8181
+        - containerPort: 8182
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-service
+  namespace: local-datalake
+spec:
+  ports:
+  - name: api
+    port: 8181
+    targetPort: 8181
+  selector:
+    app: polaris
+  type: NodePort
