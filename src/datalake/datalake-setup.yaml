@@ -42,9 +42,11 @@ spec:
   - name: api
     port: 9000
     targetPort: 9000
+    nodePort: 30090
   - name: console
     port: 9001
     targetPort: 9001
+    nodePort: 30091
   selector:
     app: minio
   type: NodePort
@@ -68,6 +70,10 @@ spec:
       containers:
       - name: polaris
         image: apache/polaris:latest
+        env:
+        # Highlight-start: Force the JVM to register your custom credentials
+        - name: JAVA_OPTS
+          value: "-Dpolaris.bootstrap.credentials=POLARIS,my-client-id,my-client-secret"
         ports:
         - containerPort: 8181
         - containerPort: 8182
@@ -82,6 +88,7 @@ spec:
   - name: api
     port: 8181
     targetPort: 8181
+    nodePort: 30181
   selector:
     app: polaris
   type: NodePort
