@@ -51,37 +51,62 @@ spec:
     app: minio
   type: NodePort
 ---
-# 2. Apache Polaris Deployment (The Catalog)
+# 2. Tabular Iceberg REST Catalog Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: polaris
+  name: iceberg-rest
   namespace: local-datalake
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: polaris
+      app: iceberg-rest
   template:
     metadata:
       labels:
-        app: polaris
+        app: iceberg-rest
     spec:
       containers:
-      - name: polaris
-        image: apache/polaris:latest
+      - name: iceberg-rest
+        image: tabulario/iceberg-rest:latest
         env:
-        # Highlight-start: Force the JVM to register your custom credentials
-        - name: JAVA_OPTS
-          value: "-Dpolaris.bootstrap.credentials=POLARIS,my-client-id,my-client-secret"
+        # Base Warehouse configuration (Points to a default 'warehouse' bucket in MinIO)
+        - name: CATALOG_WAREHOUSE
+          value: "s3a://warehouse/"
+        - name: CATALOG_IO__IMPL
+          value: "org.apache.iceberg.aws.s3.S3FileIO"
+        
+        # S3 / MinIO Connection Configs
+        - name: CATALOG_S3_ENDPOINT
+          value: "http://minio-service:9000"
+        - name: AWS_ACCESS_KEY_ID
+          value: "admin"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "password123"
+        - name: AWS_REGION
+          value: "us-east-1"
+        
+        # CRITICAL FOR MINIO: Force Path-style URLs instead of virtual-hosted ones
+        - name: CATALOG_S3_PATH__STYLE__ACCESS
+          value: "true"
+          
+        # Optional: Persist catalog state using JDBC SQLite (instead of completely in-memory)
+        - name: CATALOG_CATALOG__IMPL
+          value: "org.apache.iceberg.jdbc.JdbcCatalog"
+        - name: CATALOG_URI
+          value: "jdbc:sqlite:file:/tmp/iceberg_metadata.db"
+        - name: CATALOG_JDBC_USER
+          value: "admin"
+        - name: CATALOG_JDBC_PASSWORD
+          value: "admin"
         ports:
         - containerPort: 8181
-        - containerPort: 8182
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: polaris-service
+  name: iceberg-rest-service
   namespace: local-datalake
 spec:
   ports:
@@ -90,5 +115,5 @@ spec:
     targetPort: 8181
     nodePort: 30181
   selector:
-    app: polaris
+    app: iceberg-rest
   type: NodePort
